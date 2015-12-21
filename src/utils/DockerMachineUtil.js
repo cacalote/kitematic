@@ -58,7 +58,7 @@ var DockerMachine = {
     });
   },
   create: function (machineName = this.name()) {
-    return util.execFile([this.command(), '-D', 'create', '-d', 'virtualbox', '--virtualbox-memory', '2048', machineName]);
+    return util.execFile([this.command(), '-D', 'create', '-d', 'vmwarefusion', '--vmwarefusion-memory-size', '2048', machineName]);
   },
   start: function (machineName = this.name()) {
     return util.execFile([this.command(), '-D', 'start', machineName]);
@@ -165,6 +165,7 @@ var DockerMachine = {
         util.execFile(terminal.concat([cmd])).then(() => {});
     } else {
       cmd = cmd || process.env.SHELL;
+      console.log(process.env.RESOURCES_PATH)
       this.url(machineName).then(machineUrl => {
         util.execFile([path.join(process.env.RESOURCES_PATH, 'terminal'), `DOCKER_HOST=${machineUrl} DOCKER_CERT_PATH=${path.join(util.home(), '.docker/machine/machines/' + machineName)} DOCKER_TLS_VERIFY=1 ${cmd}`]).then(() => {});
       });

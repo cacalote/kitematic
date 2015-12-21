@@ -1,4 +1,5 @@
 import alt from '../alt';
+import _ from 'underscore';
 import tagActions from '../actions/TagActions';
 import tagServerActions from '../actions/TagServerActions';
 import accountServerActions from '../actions/AccountServerActions';
@@ -20,6 +21,17 @@ class TagStore {
     this.loading[repo] = true;
     this.emitChange();
   }
+
+  localTags ({repo, tags}) {
+     let data = [];
+     tags.map((value) => {
+       data.push({'name': value});
+     });
+     this.loading[repo] = true;
+     this.emitChange();
+     this.tagsUpdated({repo, tags: data || []});
+   }
+
 
   tagsUpdated ({repo, tags}) {
     this.tags[repo] = tags;

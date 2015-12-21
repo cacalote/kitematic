@@ -89,6 +89,15 @@ export default {
         // Make sure virtulBox and docker-machine are installed
         let virtualBoxInstalled = virtualBox.installed();
         let machineInstalled = machine.installed();
+        // if (!machineInstalled) {
+        //   router.get().transitionTo('setup');
+        //   if (!machineInstalled) {
+        //     setupServerActions.error({error: 'Docker Machine is not installed. Please install it via the Docker Toolbox.'})
+        //   }
+        //   this.clearTimers();
+        //   await this.pause();
+        //   continue;
+        // }
         if (!virtualBoxInstalled || !machineInstalled) {
           router.get().transitionTo('setup');
           if (!virtualBoxInstalled) {
@@ -110,7 +119,11 @@ export default {
           machineVersion
         });
 
-        let exists = await virtualBox.vmExists(machine.name()) && fs.existsSync(path.join(util.home(), '.docker', 'machine', 'machines', machine.name()));
+        console.log(machine.name());
+        console.log(fs.existsSync(path.join(util.home(), '.docker', 'machine', 'machines', machine.name())));
+
+        // let exists = await virtualBox.vmExists(machine.name()) && fs.existsSync(path.join(util.home(), '.docker', 'machine', 'machines', machine.name()));
+        let exists = await fs.existsSync(path.join(util.home(), '.docker', 'machine', 'machines', machine.name()));
         if (!exists) {
           router.get().transitionTo('setup');
           setupServerActions.started({started: true});
@@ -121,7 +134,6 @@ export default {
           await machine.create();
         } else {
           let state = await machine.status();
-          console.log(state);
           if (state !== 'Running') {
             if (state === 'Saved') {
               router.get().transitionTo('setup');
@@ -134,6 +146,7 @@ export default {
           }
         }
 
+        console.log("Try to receive an ip address from machine, for at least to 80 seconds.");
         // Try to receive an ip address from machine, for at least to 80 seconds.
         let tries = 80, ip = null;
         while (!ip && tries > 0) {

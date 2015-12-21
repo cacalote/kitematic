@@ -12,7 +12,7 @@ var VirtualBox = {
         return path.join(process.env.VBOX_INSTALL_PATH, 'VBoxManage.exe');
       }
     } else {
-      return '/Applications/VirtualBox.app/Contents/MacOS/VBoxManage';
+      return '/Applications/VMware Fusion.app/Contents/Library/vmrun';
     }
   },
   installed: function () {

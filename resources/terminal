@@ -6,31 +6,27 @@ CMD="clear && $*"
 ITERM_EXISTS=`osascript <<EOF
 set doesExist to false
 try
-    do shell script "osascript -e 'exists application \"iTerm\"'"
+    do shell script "osascript -e 'id of application \"iTerm\"'"
     set doesExist to true
 end try
 return doesExist
 EOF`
 
 function open_iterm () {
-  osascript > /dev/null <<EOF
+  osascript <<EOF
   tell application "iTerm"
     activate
-    try
-      tell the first terminal
-        launch session "Default Session"
-        tell the last session
-          write text "bash -c \"$CMD\""
+
+    tell current window
+        create tab with default profile
+        tell current tab
+            repeat with aSession in sessions
+                tell aSession
+                    write text "bash -c \"$CMD\""
+                end tell
+            end repeat
         end tell
-      end tell
-    on error
-      tell (make new terminal)
-        launch session "Default Session"
-        tell the last session
-          write text "bash -c \"$CMD\""
-        end tell
-      end tell
-    end try
+    end tell
   end tell
 EOF
 }
@@ -47,7 +43,7 @@ EOF
 }
 
 if [ "$ITERM_EXISTS" == "true" ]; then
-  open_iterm "$@" || open_terminal "$@"
+  open_iterm "$@"
 else
   open_terminal "$@"
 fi

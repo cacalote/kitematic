@@ -8,14 +8,16 @@ import util from './Util';
 import hubUtil from './HubUtil';
 import metrics from '../utils/MetricsUtil';
 import containerServerActions from '../actions/ContainerServerActions';
+import imageServerActions from '../actions/ImageServerActions';
 import rimraf from 'rimraf';
 import stream from 'stream';
 import JSONStream from 'JSONStream';
 
-export default {
+var DockerUtil = {
   host: null,
   client: null,
   placeholders: {},
+  localImages: null,
   streams: {},
   activeContainerName: null,
 
@@ -48,6 +50,7 @@ export default {
   init () {
     this.placeholders = JSON.parse(localStorage.getItem('placeholders')) || {};
     this.fetchAllContainers();
+    this.fetchAllImages();
     this.listen();
 
     // Resume pulling containers that were previously being pulled
@@ -143,6 +146,7 @@ export default {
         });
       });
     });
+    this.fetchAllImages();
   },
 
   fetchContainer (id) {
@@ -181,7 +185,33 @@ export default {
     });
   },
 
-  run (name, repository, tag) {
+  fetchAllImages () {
+    this.client.listImages((err, list) => {
+      if (err) {
+        imageServerActions.error(err);
+      } else {
+        this.localImages = list;
+        imageServerActions.updated(list);
+      }
+    });
+  },
+
+  removeImage (repoTag) {
+    this.localImages.some((image) => {
+      if (image.RepoTags[0] === repoTag) {
+        this.client.getImage(image.Id).remove({'force': true}, (err, data) => {
+          if (err) {
+            imageServerActions.error(err);
+          } else {
+            imageServerActions.destroyed(data);
+          }
+        });
+        return true;
+      }
+    });
+  },
+
+  run (name, repository, tag, local=false) {
     tag = tag || 'latest';
     let imageName = repository + ':' + tag;
 
@@ -202,30 +232,33 @@ export default {
 
     this.placeholders[name] = placeholderData;
     localStorage.setItem('placeholders', JSON.stringify(this.placeholders));
-
-    this.pullImage(repository, tag, error => {
-      if (error) {
-        containerServerActions.error({name, error});
-        return;
-      }
-
-      if (!this.placeholders[name]) {
-        return;
-      }
-
+    if (local) {
       this.createContainer(name, {Image: imageName, Tty: true, OpenStdin: true});
-    },
+    } else {
+      this.pullImage(repository, tag, error => {
+        if (error) {
+          containerServerActions.error({name, error});
+          return;
+        }
 
-    // progress is actually the progression PER LAYER (combined in columns)
-    // not total because it's not accurate enough
-    progress => {
-      containerServerActions.progress({name, progress});
-    },
+        if (!this.placeholders[name]) {
+          return;
+        }
+
+        this.createContainer(name, {Image: imageName, Tty: true, OpenStdin: true});
+      },
+
+      // progress is actually the progression PER LAYER (combined in columns)
+      // not total because it's not accurate enough
+      progress => {
+        containerServerActions.progress({name, progress});
+      },
 
 
-    () => {
-      containerServerActions.waiting({name, waiting: true});
-    });
+      () => {
+        containerServerActions.waiting({name, waiting: true});
+      });
+    }
   },
 
   updateContainer (name, data) {
@@ -453,7 +486,7 @@ export default {
       stream.setEncoding('utf8');
       stream.pipe(JSONStream.parse()).on('data', data => {
         if (data.status === 'pull' || data.status === 'untag' || data.status === 'delete' ||  data.status === 'attach') {
-          return;
+          this.fetchAllImages();
         }
 
         if (data.status === 'destroy') {
@@ -495,6 +528,7 @@ export default {
 
     this.client.pull(repository + ':' + tag, opts, (err, stream) => {
       if (err) {
+        console.log('Err: %o', err);
         callback(err);
         return;
       }
@@ -593,3 +627,5 @@ export default {
     });
   }
 };
+
+module.exports = DockerUtil;
